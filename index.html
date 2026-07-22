@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hand Gesture 3D Block Builder</title>
+    <style>
+        :root {
+            --bg: #0e1116;
+            --panel: rgba(20, 24, 32, 0.82);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --text: #e6edf3;
+            --muted: #8b97a7;
+            --accent: #5ce1e6;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        }
+
+        #scene {
+            position: fixed;
+            inset: 0;
+            display: block;
+        }
+
+        /* ---------- HUD (top-left) ---------- */
+        #hud {
+            position: fixed;
+            top: 14px;
+            left: 14px;
+            z-index: 10;
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            backdrop-filter: blur(8px);
+            max-width: 320px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        #hud h1 {
+            margin: 0 0 6px;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        #hud .row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 2px 0;
+        }
+
+        #hud .label {
+            color: var(--muted);
+        }
+
+        #hud .val {
+            font-variant-numeric: tabular-nums;
+        }
+
+        #status {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--panel-border);
+            color: var(--accent);
+            font-size: 12px;
+        }
+
+        .legend {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .legend b {
+            color: var(--text);
+        }
+
+        /* ---------- Controls panel (top-right) ---------- */
+        #controls {
+            position: fixed;
+            top: 14px;
+            right: 14px;
+            z-index: 10;
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            backdrop-filter: blur(8px);
+            width: 240px;
+            font-size: 12px;
+        }
+
+        #controls h2 {
+            margin: 0 0 10px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .ctrl {
+            margin: 10px 0;
+        }
+
+        .ctrl .top {
+            display: flex;
+            justify-content: space-between;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .ctrl .top .v {
+            color: var(--text);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .ctrl input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+        }
+
+        #controls button {
+            margin-top: 8px;
+            width: 100%;
+            padding: 7px;
+            border: 1px solid var(--panel-border);
+            background: rgba(255, 92, 92, 0.15);
+            color: #ff8b8b;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        #controls button:hover {
+            background: rgba(255, 92, 92, 0.28);
+        }
+
+        /* ---------- Webcam preview (bottom-right) ---------- */
+        #preview {
+            position: fixed;
+            bottom: 14px;
+            right: 14px;
+            z-index: 10;
+            width: 240px;
+            height: 180px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--panel-border);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            /* Mirror so it feels like a mirror to the user. */
+            transform: scaleX(-1);
+            background: #000;
+        }
+
+        #preview video,
+        #preview canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #preview .tag {
+            position: absolute;
+            left: 8px;
+            bottom: 6px;
+            z-index: 2;
+            font-size: 10px;
+            color: var(--muted);
+            background: rgba(0, 0, 0, 0.5);
+            padding: 2px 6px;
+            border-radius: 4px;
+            transform: scaleX(-1);
+            /* un-mirror the text */
+            transform-origin: left bottom;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 3D render target -->
+    <canvas id="scene"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+        <h1>🤏 Hand Gesture 3D Builder</h1>
+        <div class="row"><span class="label">Gesture</span><span class="val" id="gesture">—</span></div>
+        <div class="row"><span class="label">Blocks</span><span class="val" id="count">0</span></div>
+        <div class="row"><span class="label">Depth</span><span class="val" id="depth">—</span></div>
+        <div class="row"><span class="label">FPS</span><span class="val" id="fps">—</span></div>
+        <div class="legend">
+            <b>Pinch</b> (thumb+index) → spawn a cube.<br />
+            <b>Open palm</b> held ~300ms → delete nearest cube.
+        </div>
+        <div id="status">Initializing…</div>
+    </div>
+
+    <!-- Tuning controls -->
+    <div id="controls">
+        <h2>Gesture Tuning</h2>
+        <div class="ctrl">
+            <div class="top"><span>Pinch threshold</span><span class="v" id="v-pinch">0.05</span></div>
+            <input type="range" id="s-pinch" min="0.02" max="0.12" step="0.005" value="0.05" />
+        </div>
+        <div class="ctrl">
+            <div class="top"><span>Open-palm hold</span><span class="v" id="v-hold">300ms</span></div>
+            <input type="range" id="s-hold" min="100" max="1000" step="50" value="300" />
+        </div>
+        <div class="ctrl">
+            <div class="top"><span>Near palm width</span><span class="v" id="v-near">220px</span></div>
+            <input type="range" id="s-near" min="100" max="300" step="5" value="220" />
+        </div>
+        <div class="ctrl">
+            <div class="top"><span>Far palm width</span><span class="v" id="v-far">70px</span></div>
+            <input type="range" id="s-far" min="30" max="150" step="5" value="70" />
+        </div>
+        <div class="ctrl">
+            <div class="top"><span>Block size</span><span class="v" id="v-size">1.0</span></div>
+            <input type="range" id="s-size" min="0.5" max="2" step="0.1" value="1" />
+        </div>
+        <button id="btn-clear">Clear all blocks</button>
+    </div>
+
+    <!-- Webcam preview + landmark overlay -->
+    <div id="preview">
+        <video id="video" playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <span class="tag">webcam</span>
+    </div>
+
+    <!-- ES module imports via CDN -->
+    <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/vision_bundle.mjs"
+    }
+  }
+  </script>
+    <script type="module" src="./main.js"></script>
+</body>
+
+</html>

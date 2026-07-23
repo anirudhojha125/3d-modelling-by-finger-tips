@@ -135,20 +135,52 @@
             accent-color: var(--accent);
         }
 
-        #controls button {
+        #controls .btn-row {
+            display: flex;
+            gap: 8px;
             margin-top: 8px;
-            width: 100%;
+        }
+
+        #controls button {
+            flex: 1;
             padding: 7px;
             border: 1px solid var(--panel-border);
-            background: rgba(255, 92, 92, 0.15);
-            color: #ff8b8b;
             border-radius: 8px;
             cursor: pointer;
             font-size: 12px;
             font-weight: 600;
+            transition: background 0.15s ease;
         }
 
-        #controls button:hover {
+        /* Add block — accent (cyan) */
+        #btn-add {
+            background: rgba(92, 225, 230, 0.15);
+            color: #5ce1e6;
+        }
+
+        #btn-add:hover {
+            background: rgba(92, 225, 230, 0.28);
+        }
+
+        /* Delete last — warning (red) */
+        #btn-delete {
+            background: rgba(255, 92, 92, 0.15);
+            color: #ff8b8b;
+        }
+
+        #btn-delete:hover {
+            background: rgba(255, 92, 92, 0.28);
+        }
+
+        /* Clear all — full-width danger */
+        #btn-clear {
+            margin-top: 8px;
+            width: 100%;
+            background: rgba(255, 92, 92, 0.15);
+            color: #ff8b8b;
+        }
+
+        #btn-clear:hover {
             background: rgba(255, 92, 92, 0.28);
         }
 
@@ -208,7 +240,8 @@
         <div class="row"><span class="label">FPS</span><span class="val" id="fps">—</span></div>
         <div class="legend">
             <b>Pinch</b> (thumb+index) → spawn a cube.<br />
-            <b>Open palm</b> held ~300ms → delete nearest cube.
+            <b>Open palm</b> held ~300ms → delete nearest cube.<br />
+            <b>Buttons</b> → add / delete without a camera.
         </div>
         <div id="status">Initializing…</div>
     </div>
@@ -235,6 +268,10 @@
         <div class="ctrl">
             <div class="top"><span>Block size</span><span class="v" id="v-size">1.0</span></div>
             <input type="range" id="s-size" min="0.5" max="2" step="0.1" value="1" />
+        </div>
+        <div class="btn-row">
+            <button id="btn-add" title="Add a block in front of the camera">➕ Add block</button>
+            <button id="btn-delete" title="Delete the most recently added block">🗑️ Delete last</button>
         </div>
         <button id="btn-clear">Clear all blocks</button>
     </div>

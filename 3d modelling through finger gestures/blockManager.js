@@ -83,6 +83,19 @@ export class BlockManager {
         return mesh;
     }
 
+    /**
+     * Delete the most recently added block (no position needed).
+     * @returns {THREE.Mesh|null} the removed mesh, or null if none existed
+     */
+    deleteLast() {
+        if (this.blocks.length === 0) return null;
+        const mesh = this.blocks.pop();
+        this.scene.remove(mesh);
+        mesh.geometry.dispose();
+        mesh.material.dispose();
+        return mesh;
+    }
+
     /** Remove every block and free its resources. */
     clear() {
         while (this.blocks.length) {

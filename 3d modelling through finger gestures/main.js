@@ -207,6 +207,20 @@ function updateHUD(gesture, worldPos) {
     depthEl.textContent = `${worldPos.depth.toFixed(2)} (z=${worldPos.z.toFixed(2)})`;
 }
 
+// --- Manual block placement (no camera needed) ---
+// Spawns a block just in front of the camera, slightly offset on each call so
+// repeated clicks don't stack them exactly on top of each other.
+function spawnBlockInFront() {
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    const pos = camera.position.clone().add(dir.multiplyScalar(4));
+    // Small scattered offset for variety.
+    pos.x += (Math.random() - 0.5) * 1.5;
+    pos.y += (Math.random() - 0.5) * 1.5;
+    blockManager.spawn(pos);
+    countEl.textContent = blockManager.count();
+}
+
 // --- UI control binding (sliders) ---
 function bindSlider(id, valueId, applyFn, format = (v) => v) {
     const el = document.getElementById(id);
@@ -237,7 +251,17 @@ function bindControls() {
         (v) => { config.blockSize = v; blockManager.setBlockSize(v); },
         (v) => v.toFixed(1));
 
-    document.getElementById('btn-clear').addEventListener('click', () => blockManager.clear());
+    document.getElementById('btn-add').addEventListener('click', () => {
+        spawnBlockInFront();
+    });
+    document.getElementById('btn-delete').addEventListener('click', () => {
+        blockManager.deleteLast();
+        countEl.textContent = blockManager.count();
+    });
+    document.getElementById('btn-clear').addEventListener('click', () => {
+        blockManager.clear();
+        countEl.textContent = blockManager.count();
+    });
 }
 
 // --- Main loop ---

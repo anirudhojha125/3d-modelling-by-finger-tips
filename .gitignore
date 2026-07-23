@@ -1,0 +1,21 @@
+# Unrelated scratch files (not part of the 3D modeling project)
+hello.py
+Hello.java
+Hello.class
+
+# OS junk
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+
+# Python (only used to serve the static site)
+__pycache__/
+*.pyc

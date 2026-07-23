@@ -1,19 +1,5 @@
-// gestureRecognizer.js
-// ---------------------------------------------------------------------------
-// Hand gesture classification from the 21 MediaPipe hand landmarks.
-//
-// Recognized gestures:
-//   PINCH      — thumb tip (4) and index tip (8) are close together.
-//                Used to SPAWN a cube at the pinch location.
-//   OPEN PALM  — at least N non-thumb fingers are extended, held for ~holdMs.
-//                Used to DELETE the nearest cube.
-//
-// Finger-extension test (orientation independent):
-//   A finger is "extended" when its tip is farther from the wrist than its
-//   PIP joint (with a small margin to reduce flicker). When a finger curls,
-//   the tip folds back toward the palm and the tip-to-wrist distance drops
-//   below the PIP-to-wrist distance.
-// ---------------------------------------------------------------------------
+// gestureRecognizer.js — pinch / open-palm classification from 21 MediaPipe landmarks.
+// A finger is "extended" when its tip is farther from the wrist than its PIP joint (15% margin).
 
 function dist2D(a, b) {
     const dx = a.x - b.x;

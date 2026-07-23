@@ -1,18 +1,5 @@
-// main.js
-// ---------------------------------------------------------------------------
-// App initialization and the real-time loop.
-//
-// Pipeline (per frame):
-//   webcam frame -> MediaPipe HandLandmarker -> 21 landmarks
-//   -> DepthEstimator.estimate()  -> 3D world position
-//   -> GestureRecognizer.classify() -> pinch / open-palm
-//   -> gesture state machine -> BlockManager.spawn() / deleteNearest()
-//   -> Three.js render
-//
-// The gesture state machine uses rising-edge latches so that one pinch spawns
-// exactly one cube, and one held open palm deletes exactly one cube (until the
-// hand closes and re-opens).
-// ---------------------------------------------------------------------------
+// main.js — app init + real-time loop.
+// Pipeline: webcam -> MediaPipe HandLandmarker -> DepthEstimator + GestureRecognizer -> BlockManager -> Three.js render.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -21,25 +8,17 @@ import { DepthEstimator } from './depthEstimator.js';
 import { GestureRecognizer, HAND_CONNECTIONS } from './gestureRecognizer.js';
 import { BlockManager } from './blockManager.js';
 
-// ---------------------------------------------------------------------------
-// Configuration (tweakable at runtime via the UI sliders in index.html).
-// ---------------------------------------------------------------------------
+// Runtime-tweakable config (bound to the UI sliders in index.html).
 const config = {
-    pinchThreshold: 0.05,    // normalized thumb-index distance to count as pinch
-    openPalmMinFingers: 4,   // non-thumb fingers extended for "open palm"
-    openPalmHoldMs: 300,     // how long the open palm must be held to delete
-    depth: {
-        nearPalmWidth: 220,    // px palm width -> depth 0 (near camera)
-        farPalmWidth: 70,      // px palm width -> depth 1 (far from camera)
-    },
-    // Workspace volume (world units) that the hand maps into.
+    pinchThreshold: 0.05,
+    openPalmMinFingers: 4,
+    openPalmHoldMs: 300,
+    depth: { nearPalmWidth: 220, farPalmWidth: 70 },
     workspace: { width: 7, height: 4, nearZ: 2, farZ: -3 },
     blockSize: 1,
 };
 
-// ---------------------------------------------------------------------------
-// DOM references
-// ---------------------------------------------------------------------------
+// DOM references.
 const canvas = document.getElementById('scene');
 const video = document.getElementById('video');
 const overlay = document.getElementById('overlay');
@@ -50,18 +29,11 @@ const countEl = document.getElementById('count');
 const gestureEl = document.getElementById('gesture');
 const depthEl = document.getElementById('depth');
 
-// ---------------------------------------------------------------------------
-// Three.js scene
-// ---------------------------------------------------------------------------
+// --- Three.js scene ---
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0e1116);
 
-const camera = new THREE.PerspectiveCamera(
-    60,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    100
-);
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
 camera.position.set(0, 1.6, 8);
 camera.lookAt(0, 0, 0);
 
@@ -71,7 +43,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-// Mouse orbit so the user can inspect the structure (hands build, mouse views).
+// Mouse orbit (hands build, mouse views).
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
@@ -79,7 +51,7 @@ controls.target.set(0, 0, 0);
 controls.minDistance = 4;
 controls.maxDistance = 16;
 
-// Lights
+// Lights.
 scene.add(new THREE.AmbientLight(0xffffff, 0.45));
 const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
 dirLight.position.set(5, 10, 6);
@@ -105,7 +77,7 @@ const grid = new THREE.GridHelper(30, 30, 0x3a4252, 0x222831);
 grid.position.y = -2.49;
 scene.add(grid);
 
-// Hand cursor: a small sphere showing where a pinch would spawn a block.
+// Hand cursor: small sphere showing where a pinch would spawn a block.
 const cursor = new THREE.Mesh(
     new THREE.SphereGeometry(0.18, 16, 16),
     new THREE.MeshBasicMaterial({ color: 0xffe066 })
@@ -113,50 +85,43 @@ const cursor = new THREE.Mesh(
 cursor.visible = false;
 scene.add(cursor);
 
-// ---------------------------------------------------------------------------
-// Modules
-// ---------------------------------------------------------------------------
+// --- Modules ---
 const depthEstimator = new DepthEstimator(config);
 const gestureRecognizer = new GestureRecognizer(config);
 const blockManager = new BlockManager(scene, config);
 
-// ---------------------------------------------------------------------------
-// Gesture state machine
-// ---------------------------------------------------------------------------
-let pinchActive = false; // rising-edge latch: one spawn per pinch
-let deleteArmed = true;  // one delete per open-palm hold
+// --- Gesture state machine (rising-edge latches: one action per gesture) ---
+let pinchActive = false;
+let deleteArmed = true;
 
 function handleGesture(gesture, worldPos) {
     const pos = new THREE.Vector3(worldPos.x, worldPos.y, worldPos.z);
 
-    // PINCH -> spawn one cube per new pinch (rising edge).
+    // PINCH -> spawn one cube per new pinch.
     if (gesture.isPinch) {
         if (!pinchActive) {
             pinchActive = true;
             blockManager.spawn(pos);
         }
     } else {
-        pinchActive = false; // re-arm for the next pinch
+        pinchActive = false;
     }
 
-    // OPEN PALM (held) -> delete the nearest cube, once per hold.
+    // OPEN PALM (held) -> delete nearest cube, once per hold.
     if (gesture.openPalmHeld) {
         if (deleteArmed) {
             blockManager.deleteNearest(pos);
             deleteArmed = false;
         }
     } else {
-        deleteArmed = true; // re-arm when the hand closes again
+        deleteArmed = true;
     }
 }
 
-// ---------------------------------------------------------------------------
-// MediaPipe HandLandmarker
-// ---------------------------------------------------------------------------
+// --- MediaPipe HandLandmarker ---
 let handLandmarker = null;
 
-const WASM_URL =
-    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm';
+const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm';
 const MODEL_URL =
     'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
 
@@ -176,9 +141,8 @@ async function initHandLandmarker() {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Webcam
-// ---------------------------------------------------------------------------
+// --- Webcam ---
+// Waits for video metadata so videoWidth/Height are non-zero before sizing the overlay.
 async function initCamera() {
     const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 640, height: 480, facingMode: 'user' },
@@ -186,14 +150,22 @@ async function initCamera() {
     });
     video.srcObject = stream;
     await video.play();
-    // Match the overlay resolution to the real video resolution.
-    overlay.width = video.videoWidth;
-    overlay.height = video.videoHeight;
+    // Guard: if metadata already fired, resolve immediately; otherwise wait once.
+    if (video.readyState >= 1 && video.videoWidth > 0) {
+        overlay.width = video.videoWidth;
+        overlay.height = video.videoHeight;
+        return;
+    }
+    await new Promise((resolve) => {
+        video.onloadedmetadata = () => {
+            overlay.width = video.videoWidth;
+            overlay.height = video.videoHeight;
+            resolve();
+        };
+    });
 }
 
-// ---------------------------------------------------------------------------
-// Overlay drawing (landmarks + gesture-colored skeleton)
-// ---------------------------------------------------------------------------
+// --- Overlay drawing (landmarks + gesture-colored skeleton) ---
 function drawOverlay(landmarks, gesture) {
     octx.clearRect(0, 0, overlay.width, overlay.height);
 
@@ -203,7 +175,6 @@ function drawOverlay(landmarks, gesture) {
             ? '#ff5c5c'
             : '#5ce1e6';
 
-    // Skeleton connections.
     octx.lineWidth = 3;
     octx.strokeStyle = color;
     octx.beginPath();
@@ -213,7 +184,6 @@ function drawOverlay(landmarks, gesture) {
     }
     octx.stroke();
 
-    // Landmark points.
     octx.fillStyle = '#ffffff';
     for (const p of landmarks) {
         octx.beginPath();
@@ -226,9 +196,7 @@ function clearOverlay() {
     octx.clearRect(0, 0, overlay.width, overlay.height);
 }
 
-// ---------------------------------------------------------------------------
-// HUD update
-// ---------------------------------------------------------------------------
+// --- HUD update ---
 function updateHUD(gesture, worldPos) {
     let label = 'Idle';
     if (gesture.openPalmHeld) label = 'DELETE ✋';
@@ -239,9 +207,7 @@ function updateHUD(gesture, worldPos) {
     depthEl.textContent = `${worldPos.depth.toFixed(2)} (z=${worldPos.z.toFixed(2)})`;
 }
 
-// ---------------------------------------------------------------------------
-// UI control binding (sliders)
-// ---------------------------------------------------------------------------
+// --- UI control binding (sliders) ---
 function bindSlider(id, valueId, applyFn, format = (v) => v) {
     const el = document.getElementById(id);
     const valEl = document.getElementById(valueId);
@@ -274,9 +240,10 @@ function bindControls() {
     document.getElementById('btn-clear').addEventListener('click', () => blockManager.clear());
 }
 
-// ---------------------------------------------------------------------------
-// Main loop
-// ---------------------------------------------------------------------------
+// --- Main loop ---
+// Started immediately so the 3D scene (floor/grid/lights) always renders,
+// even before — or if — the camera/model fail to load. This prevents the
+// black screen that happened when init errors aborted the render loop.
 let lastFrame = performance.now();
 let fpsAccum = 0;
 let fpsFrames = 0;
@@ -296,8 +263,8 @@ function loop() {
         fpsFrames = 0;
     }
 
-    // Hand tracking + gesture handling.
-    if (handLandmarker && video.readyState >= 2) {
+    // Hand tracking + gesture handling (only when model + video are ready).
+    if (handLandmarker && video.readyState >= 2 && video.videoWidth > 0) {
         const result = handLandmarker.detectForVideo(video, now);
         if (result.landmarks && result.landmarks.length > 0) {
             const landmarks = result.landmarks[0];
@@ -306,7 +273,6 @@ function loop() {
 
             handleGesture(gesture, worldPos);
 
-            // Move + color the cursor to reflect the current gesture.
             cursor.position.set(worldPos.x, worldPos.y, worldPos.z);
             cursor.visible = true;
             cursor.material.color.set(
@@ -316,7 +282,6 @@ function loop() {
             drawOverlay(landmarks, gesture);
             updateHUD(gesture, worldPos);
         } else {
-            // No hand visible.
             cursor.visible = false;
             clearOverlay();
             gestureRecognizer.reset();
@@ -328,30 +293,40 @@ function loop() {
     renderer.render(scene, camera);
 }
 
-// ---------------------------------------------------------------------------
-// Resize handling
-// ---------------------------------------------------------------------------
+// --- Resize handling ---
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// ---------------------------------------------------------------------------
-// Boot
-// ---------------------------------------------------------------------------
+// --- Boot ---
+// The render loop starts right away; camera + model load in the background
+// and report their own status. A failure in either no longer blanks the screen.
 async function main() {
+    requestAnimationFrame(loop);
+    bindControls();
+
     statusEl.textContent = 'Loading hand model…';
     try {
         await initHandLandmarker();
-        statusEl.textContent = 'Starting camera…';
+    } catch (err) {
+        console.error('Hand model init failed:', err);
+        statusEl.textContent = '⚠️ Hand model failed: ' + err.message + ' — 3D scene still works.';
+        return;
+    }
+
+    statusEl.textContent = 'Starting camera…';
+    try {
         await initCamera();
         statusEl.textContent = 'Ready ✅  Pinch to create · Open palm to delete';
-        bindControls();
-        requestAnimationFrame(loop);
     } catch (err) {
-        console.error(err);
-        statusEl.textContent = 'Error: ' + err.message;
+        console.error('Camera init failed:', err);
+        let hint = err.message;
+        if (err.name === 'NotAllowedError') hint = 'Camera permission denied — allow access in your browser.';
+        else if (err.name === 'NotFoundError') hint = 'No camera found on this device.';
+        else if (location.protocol === 'file:') hint = 'Open via http://localhost:8000, not the file:// URL.';
+        statusEl.textContent = '⚠️ Camera failed: ' + hint + ' — 3D scene still works.';
     }
 }
 

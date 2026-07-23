@@ -1,12 +1,4 @@
-// blockManager.js
-// ---------------------------------------------------------------------------
-// Spawns, tracks and deletes simple cubic blocks in the Three.js scene.
-//
-// Each block is a BoxGeometry mesh with a random palette color and a black
-// wireframe overlay (EdgesGeometry) for a clean, readable "block" look.
-// Blocks are kept in an array so we can find the nearest one for deletion
-// and dispose of GPU resources properly when removed.
-// ---------------------------------------------------------------------------
+// blockManager.js — spawn / track / delete cubes in the Three.js scene.
 
 import * as THREE from 'three';
 

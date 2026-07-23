@@ -1,19 +1,5 @@
-// depthEstimator.js
-// ---------------------------------------------------------------------------
-// Rough monocular depth + 3D position inference from a single 2D hand.
-//
-// Strategy:
-//   The apparent size of the hand (palm width in pixels) is inversely
-//   proportional to its distance from the camera. We measure the distance
-//   between the index-finger MCP (landmark 5) and the pinky-finger MCP
-//   (landmark 17) — a metric that is stable regardless of finger curl — and
-//   map it to a normalized depth value. That depth, together with the 2D
-//   hand center, is unprojected into a configurable workspace volume.
-//
-// This is intentionally simple (no learned depth model) so it runs in real
-// time and is easy to tune. See README for how to calibrate the palm-width
-// range to your camera/setup.
-// ---------------------------------------------------------------------------
+// depthEstimator.js — rough monocular depth + 3D position from a single 2D hand.
+// Palm width (px) is inversely proportional to distance; mapped to a workspace volume.
 
 function dist2D(a, b) {
     const dx = a.x - b.x;

@@ -7,6 +7,7 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 import { DepthEstimator } from './depthEstimator.js';
 import { GestureRecognizer, HAND_CONNECTIONS } from './gestureRecognizer.js';
 import { BlockManager } from './blockManager.js';
+import { HandVisualizer } from './handVisualizer.js';
 
 // Runtime-tweakable config (bound to the UI sliders in index.html).
 const config = {
@@ -89,6 +90,7 @@ scene.add(cursor);
 const depthEstimator = new DepthEstimator(config);
 const gestureRecognizer = new GestureRecognizer(config);
 const blockManager = new BlockManager(scene, config);
+const handVisualizer = new HandVisualizer(scene, config);
 
 // --- Gesture state machine (rising-edge latches: one action per gesture) ---
 let pinchActive = false;
@@ -248,7 +250,7 @@ function bindControls() {
         (v) => depthEstimator.setFar(v),
         (v) => `${v | 0}px`);
     bindSlider('s-size', 'v-size',
-        (v) => { config.blockSize = v; blockManager.setBlockSize(v); },
+        (v) => { config.blockSize = v; blockManager.setBlockSize(v); handVisualizer.setBlockSize(v); },
         (v) => v.toFixed(1));
 
     document.getElementById('btn-add').addEventListener('click', () => {
@@ -303,10 +305,14 @@ function loop() {
                 gesture.isPinch ? 0xffd166 : gesture.openPalmHeld ? 0xff5c5c : 0xffe066
             );
 
+            // Live virtual hand: skeleton + ghost build preview + delete highlight.
+            handVisualizer.update(landmarks, worldPos, gesture, blockManager, dt);
+
             drawOverlay(landmarks, gesture);
             updateHUD(gesture, worldPos);
         } else {
             cursor.visible = false;
+            handVisualizer.hide();
             clearOverlay();
             gestureRecognizer.reset();
             gestureEl.textContent = 'No hand';

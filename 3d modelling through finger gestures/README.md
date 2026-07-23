@@ -24,6 +24,7 @@ main.js               App init, Three.js scene, webcam + MediaPipe loop, gesture
 gestureRecognizer.js Hand tracking output → pinch / open-palm classification
 blockManager.js       Spawn / track / delete cubes in the Three.js scene
 depthEstimator.js     Rough 3D position inference from hand size + 2D location
+handVisualizer.js     Live 3D virtual hand: skeleton + ghost build preview + delete highlight
 README.md             This file
 ```
 
@@ -79,8 +80,37 @@ Gesture state machine (rising-edge latches)
    │  new pinch      → BlockManager.spawn(pos)      (one cube per pinch)
    │  open palm held → BlockManager.deleteNearest() (one delete per hold)
    ▼
-Three.js render  (scene + shadows + grid floor + hand cursor)
+HandVisualizer.update()  (every frame, while a hand is tracked)
+   │  21 landmarks + hand world pos → 3D skeleton (joints + bones)
+   │  pinch pose        → translucent ghost block at the spawn point
+   │  open palm pose    → pulsing red wireframe around the doomed block
+   ▼
+Three.js render  (scene + shadows + grid floor + virtual hand + cursor)
 ```
+
+---
+
+## Virtual hand preview
+
+To make it easy to predict **where a block will be built** and **which block
+will be deleted**, the scene renders a live 3D "virtual hand" driven by the
+same 21 MediaPipe landmarks used for gesture detection. It has three parts:
+
+| Element | When shown | Meaning |
+|---------|------------|---------|
+| **Skeleton** (joints + bones) | whenever a hand is tracked | the live pose of your hand in 3D space |
+| **Ghost block** (translucent cube) | while *not* in an open-palm pose | the exact spot a pinch would spawn a cube |
+| **Delete highlight** (pulsing red wireframe box) | during an open-palm pose | the block an open palm would delete |
+
+The skeleton color matches the gesture state, identical to the webcam overlay:
+
+- **Cyan** — idle / neutral
+- **Yellow** — pinch detected (the ghost block brightens and pulses)
+- **Red** — open palm held (the delete highlight pulses faster as it's about to fire)
+
+Because the ghost block and delete highlight update every frame *before* the
+gesture actually fires, you can line up your hand precisely before committing
+to a build or a delete — no more guessing where the next cube will land.
 
 ### Key design decisions
 
@@ -129,14 +159,18 @@ Use the **Gesture Tuning** panel (top-right) to adjust live:
    HUD — it should read ~`0.00`. If not, lower *Near palm width* until it does.
 2. Move your hand **far** from the camera — Depth should approach ~`1.00`. If
    it saturates early, lower *Far palm width*.
-3. The yellow sphere (hand cursor) shows the exact 3D spawn point in real time,
-   so you can verify depth feels right before pinching.
+3. The yellow sphere (hand cursor) and the translucent **ghost block** from the
+   virtual hand both show the exact 3D spawn point in real time, so you can
+   verify depth feels right before pinching.
 
 ### Testing gestures
 
 - The webcam preview (bottom-right) draws the hand skeleton; it turns
   **yellow** on pinch and **red** when a delete fires — handy for verifying
   detection.
+- The 3D scene also shows a **virtual hand** that mirrors your real one: a
+  translucent ghost block previews the build location, and a pulsing red box
+  wraps the block an open palm would delete.
 - The HUD shows the current gesture label, block count, depth, and FPS.
 - Aim for ≥ 30 FPS on a typical laptop. If FPS is low, the app automatically
   falls back from the GPU to the CPU MediaPipe delegate; you can also lower

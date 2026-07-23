@@ -58,11 +58,12 @@ export class BlockManager {
     }
 
     /**
-     * Delete the block closest to the given position.
+     * Find the block closest to the given position (non-destructive).
+     * Used by the virtual-hand preview to highlight what *would* be deleted.
      * @param {THREE.Vector3} position
-     * @returns {THREE.Mesh|null} the removed mesh, or null if none existed
+     * @returns {THREE.Mesh|null} the nearest mesh, or null if none exist
      */
-    deleteNearest(position) {
+    nearest(position) {
         if (this.blocks.length === 0) return null;
 
         let bestIndex = -1;
@@ -74,12 +75,22 @@ export class BlockManager {
                 bestIndex = i;
             }
         });
+        return this.blocks[bestIndex];
+    }
 
-        const mesh = this.blocks[bestIndex];
+    /**
+     * Delete the block closest to the given position.
+     * @param {THREE.Vector3} position
+     * @returns {THREE.Mesh|null} the removed mesh, or null if none existed
+     */
+    deleteNearest(position) {
+        const mesh = this.nearest(position);
+        if (!mesh) return null;
+
         this.scene.remove(mesh);
         mesh.geometry.dispose();
         mesh.material.dispose();
-        this.blocks.splice(bestIndex, 1);
+        this.blocks.splice(this.blocks.indexOf(mesh), 1);
         return mesh;
     }
 
